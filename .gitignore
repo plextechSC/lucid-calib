@@ -34,6 +34,6 @@ Thumbs.db
 # Logs
 *.log
 
-data/
+data*/
 output/
 pre_processed_masks/

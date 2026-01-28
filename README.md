@@ -74,19 +74,21 @@ input_data/
 ```
 output/
 ├── scene1_cam02/
-│   ├── images/           # Copied input images
-│   ├── pc/               # Copied point clouds
-│   ├── masks/            # SAM-generated masks
-│   ├── processed_masks/  # Filtered masks
-│   └── calib.json        # Converted calibration
+│   ├── working/              # Data for CalibAnything
+│   │   ├── images/           # Cropped (wide) or copied (narrow) images
+│   │   ├── pc/               # Copied point clouds
+│   │   ├── masks/            # SAM-generated masks
+│   │   ├── processed_masks/  # Filtered masks for calibration
+│   │   └── calib.json        # Calibration config (TUNE THIS!)
+│   └── results/              # Calibration outputs
+│       ├── extrinsic.txt     # Refined extrinsic matrix
+│       ├── init_proj.png     # Initial projection visualization
+│       ├── init_proj_seg.png
+│       ├── refined_proj.png  # Refined projection visualization
+│       └── refined_proj_seg.png
 ├── scene1_cam03/
 │   └── ...
-└── calibration_results/
-    ├── scene1_cam02_000000/
-    │   ├── extrinsic.txt
-    │   ├── refined_proj.png
-    │   └── refined_proj_seg.png
-    └── ...
+└── ...
 ```
 
 ## Usage
@@ -113,6 +115,84 @@ python scripts/run_pipeline.py -i data/scenes -o output --force-sam
 
 ```bash
 python scripts/run_pipeline.py -i data/scenes -o output --sam-max-dimension 1024
+```
+
+### Use Pre-made Masks
+
+```bash
+# Use external processed masks (skips SAM and mask processing)
+python scripts/run_pipeline.py -i data/scenes -o output --processed-masks-dir /path/to/masks
+
+# Use external raw masks (skips SAM, runs processing)
+python scripts/run_pipeline.py -i data/scenes -o output --masks-dir /path/to/masks
+```
+
+The pipeline also auto-detects masks in source data (`scene/camera/masks/` or `scene/camera/processed_masks/`).
+
+## Tuning Calibration Parameters
+
+CalibAnything requires **scene-specific parameter tuning** for optimal results. The key parameters are in the `params` section of `output/<scene>_<camera>/working/calib.json`:
+
+```json
+"params": {
+  "min_plane_point_num": 2000,
+  "cluster_tolerance": 0.25,
+  "search_num": 4000,
+  "search_range": {
+    "rot_deg": 5,
+    "trans_m": 0.5
+  },
+  "point_range": {
+    "top": 0.0,
+    "bottom": 1.0
+  },
+  "down_sample": {
+    "is_valid": false,
+    "voxel_m": 0.05
+  },
+  "thread": {
+    "is_multi_thread": true,
+    "num_thread": 8
+  }
+}
+```
+
+### Parameter Reference
+
+| Parameter | Description | Default | Typical Range |
+|-----------|-------------|---------|---------------|
+| `min_plane_point_num` | Minimum points required to detect a plane | 2000 | 500-5000 |
+| `cluster_tolerance` | Distance threshold for point clustering (meters) | 0.25 | 0.1-0.5 |
+| `search_num` | Number of random search iterations | 4000 | 1000-10000 |
+| `search_range.rot_deg` | Rotation search range (degrees) | 5 | 1-10 |
+| `search_range.trans_m` | Translation search range (meters) | 0.5 | 0.1-1.0 |
+| `point_range.top` | Top percentage of points to exclude (0=none) | 0.0 | 0.0-0.5 |
+| `point_range.bottom` | Bottom percentage of points to include (1=all) | 1.0 | 0.5-1.0 |
+| `down_sample.is_valid` | Enable voxel grid downsampling | false | true/false |
+| `down_sample.voxel_m` | Voxel size for downsampling (meters) | 0.05 | 0.02-0.1 |
+| `thread.num_thread` | Number of parallel threads | 8 | 1-16 |
+
+### Tuning Tips
+
+- **Initial calibration is far off**: Increase `search_range` (rot_deg: 10, trans_m: 1.0)
+- **Calibration is close but noisy**: Decrease `search_range` and increase `search_num`
+- **Processing is too slow**: Enable `down_sample` or reduce `search_num`
+- **Too few planes detected**: Decrease `min_plane_point_num`
+- **Focus on ground plane**: Set `point_range.top: 0.3` to exclude sky/upper points
+
+### Re-running Calibration
+
+After modifying `calib.json`, re-run the pipeline (masks are cached, only calibration runs):
+
+```bash
+python scripts/run_pipeline.py -i data/scenes -o output
+```
+
+Or run CalibAnything directly:
+
+```bash
+cd external/CalibAnything
+./bin/run_lidar2camera /absolute/path/to/output/scene_cam/working/calib.json
 ```
 
 ## Individual Scripts
