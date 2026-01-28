@@ -1,0 +1,11 @@
+# Core numerical computing
+numpy>=1.21.0
+
+# Computer vision (for mask processing and image cropping)
+opencv-python>=4.5.0
+
+# Scientific computing - rotations (for calibration conversion)
+scipy>=1.7.0
+
+# Image processing (for cropping)
+Pillow>=8.0.0
