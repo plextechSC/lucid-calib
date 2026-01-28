@@ -24,19 +24,23 @@ from shutil import copyfile
 import argparse
 
 
-def process_masks(input_dir: str, output_dir: str) -> int:
+def process_masks(input_dir: str, output_dir: str, verbose: bool = True) -> int:
     """
     Process all masks in the input directory.
 
     Args:
         input_dir: Directory containing mask subdirectories (one per image)
         output_dir: Directory to save processed masks
+        verbose: Print progress messages
 
     Returns:
         Number of masks processed
     """
     masks_list = os.listdir(input_dir)
     masks_list.sort()  # Sort the list to process directories in order
+    
+    # Filter to only directories
+    masks_list = [m for m in masks_list if os.path.isdir(os.path.join(input_dir, m))]
 
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
@@ -45,37 +49,32 @@ def process_masks(input_dir: str, output_dir: str) -> int:
         return 0
 
     total_processed = 0
+    total_dirs = len(masks_list)
 
-    for mask_name in masks_list:
+    for dir_idx, mask_name in enumerate(masks_list):
         input_dir_sub = os.path.join(input_dir, mask_name)
-
-        # Skip if not a directory (e.g., .DS_Store files on macOS)
-        if not os.path.isdir(input_dir_sub):
-            continue
-
         output_dir_sub = os.path.join(output_dir, mask_name)
         os.makedirs(output_dir_sub)
 
-        mask_files = os.listdir(input_dir_sub)
-        n = 0
+        mask_files = [f for f in os.listdir(input_dir_sub) if f.endswith('.png')]
+        mask_files.sort()
+        n_processed = 0
+        n_copied = 0
+        
+        if verbose:
+            print(f"[{dir_idx+1}/{total_dirs}] Processing {mask_name} ({len(mask_files)} masks)...")
 
-        for file in mask_files:
-            if not file.endswith('.png'):
-                continue
-
+        for file_idx, file in enumerate(mask_files):
             mask_ori = cv2.imread(os.path.join(input_dir_sub, file))
             if mask_ori is None:
+                if verbose:
+                    print(f"  Warning: Could not read {file}")
                 continue
 
             H, W, _ = mask_ori.shape
             mask_ori = mask_ori > 128
-
-            mask_ori = np.asarray(mask_ori[:, :, 0], dtype=np.double)
+            mask_ori = np.asarray(mask_ori[:, :, 0], dtype=np.uint8)
             n_white = np.sum(mask_ori)
-            gx, gy = np.gradient(mask_ori)
-            temp_edge = gy * gy + gx * gx
-
-            temp_edge[temp_edge != 0.0] = 1
 
             if n_white < 0.02 * H * W:
                 # Small mask - copy as-is
@@ -83,29 +82,31 @@ def process_masks(input_dir: str, output_dir: str) -> int:
                     os.path.join(input_dir_sub, file),
                     os.path.join(output_dir_sub, file)
                 )
+                n_copied += 1
             else:
-                # Large mask - expand edges and intersect
-                mask_new1 = np.zeros(mask_ori.shape, dtype=bool)
+                # Large mask - expand edges using morphological dilation (FAST)
+                # Calculate margin based on mask density
                 margin_inside = int(30 + H * W / n_white)
-
-                for i in range(H):
-                    for j in range(W):
-                        if temp_edge[i][j] != 0:
-                            left = max(j - margin_inside, 0)
-                            right = min(j + margin_inside, W - 1)
-                            top = max(i - margin_inside, 0)
-                            bottom = min(i + margin_inside, H - 1)
-                            mask_new1[top:bottom, left:right] = 1
-
-                mask_out = np.zeros(mask_ori.shape)
-                mask_out[np.logical_and(mask_ori, mask_new1)] = 255
-                mask_out = np.asarray(mask_out, dtype=np.uint8)
+                
+                # Find edges using gradient
+                gx, gy = np.gradient(mask_ori.astype(np.float32))
+                temp_edge = (gy * gy + gx * gx) > 0
+                temp_edge = temp_edge.astype(np.uint8)
+                
+                # Use morphological dilation instead of nested loops (MUCH faster)
+                kernel_size = margin_inside * 2 + 1
+                kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+                mask_dilated = cv2.dilate(temp_edge, kernel, iterations=1)
+                
+                # Intersect with original mask
+                mask_out = np.zeros(mask_ori.shape, dtype=np.uint8)
+                mask_out[np.logical_and(mask_ori, mask_dilated)] = 255
                 cv2.imwrite(os.path.join(output_dir_sub, file), mask_out)
-                n += 1
+                n_processed += 1
 
-        if n > 0:
-            print(f"Processed {n} masks in {mask_name}")
-        total_processed += n
+        if verbose:
+            print(f"  -> {n_processed} processed, {n_copied} copied (small)")
+        total_processed += n_processed + n_copied
 
     return total_processed
 

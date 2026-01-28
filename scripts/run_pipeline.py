@@ -596,24 +596,33 @@ def process_masks(masks_dir: Path, processed_masks_dir: Path) -> bool:
     print(f"  Processing {len(mask_subdirs)} mask directories ({total_masks} total masks)...")
 
     cmd = [
-        'python3', str(process_script),
+        'python3', '-u', str(process_script),  # -u for unbuffered output
         '-i', str(masks_dir),
         '-o', str(processed_masks_dir)
     ]
 
     try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        if result.stdout.strip():
-            for line in result.stdout.strip().split('\n'):
-                print(f"    {line}")
+        # Stream output in real-time
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        for line in process.stdout:
+            print(f"    {line.rstrip()}")
+        
+        process.wait()
+        
+        if process.returncode != 0:
+            raise subprocess.CalledProcessError(process.returncode, cmd)
+        
         print(f"  Processed masks saved to: {processed_masks_dir}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"  Error processing masks: {e}")
-        if e.stdout and e.stdout.strip():
-            print(f"  stdout: {e.stdout}")
-        if e.stderr and e.stderr.strip():
-            print(f"  stderr: {e.stderr}")
+        print(f"  Error processing masks (exit code: {e.returncode})")
         return False
 
 
@@ -755,7 +764,11 @@ def run_calibration(
         print(f"  Error: calib.json not found at {calib_json_path}")
         return False, results_dir
 
-    calib_data = json.load(open(calib_json_path))
+    # Convert to absolute paths before changing directory
+    calib_json_path_abs = calib_json_path.resolve()
+    results_dir_abs = results_dir.resolve()
+
+    calib_data = json.load(open(calib_json_path_abs))
     file_names = calib_data.get('file_name', ['000000'])
 
     project_root = CALIBANYTHING_DIR
@@ -768,7 +781,7 @@ def run_calibration(
         print(f"    Working directory: {working_dir}")
         print(f"    Running calibration (output streamed below)...")
 
-        cmd = [str(executable), str(calib_json_path)]
+        cmd = [str(executable), str(calib_json_path_abs)]
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -793,11 +806,11 @@ def run_calibration(
         for filename in output_files:
             src = project_root / filename
             if src.exists():
-                dst = results_dir / filename
+                dst = results_dir_abs / filename
                 shutil.copy2(src, dst)
                 copied_files.append(filename)
 
-        print(f"  Calibration complete. Results saved to: {results_dir}")
+        print(f"  Calibration complete. Results saved to: {results_dir_abs}")
         print(f"    Copied files: {', '.join(copied_files)}")
         return True, results_dir
 
