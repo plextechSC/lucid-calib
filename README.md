@@ -60,7 +60,13 @@ input_data/
 │   ├── cam02/
 │   │   ├── 000000.png
 │   │   ├── 000001.png
-│   │   └── lucid_calib.json
+│   │   ├── lucid_calib.json
+│   │   ├── masks/              # (optional) Raw SAM masks
+│   │   │   ├── 000000.png
+│   │   │   └── ...
+│   │   └── processed_masks/    # (optional) Pre-processed masks
+│   │       ├── 000000.png
+│   │       └── ...
 │   ├── cam03/
 │   │   ├── 000000.png
 │   │   └── lucid_calib.json
@@ -68,6 +74,15 @@ input_data/
 └── scene2/
     └── ...
 ```
+
+### Using Pre-made Masks
+
+If you have pre-generated masks, place them in the input data folder and the pipeline will automatically detect and use them:
+
+- **`processed_masks/`** - Skips both SAM generation and mask processing (fastest)
+- **`masks/`** - Skips SAM generation, still runs mask processing
+
+This is useful when you have manually created masks or want to reuse masks from a previous run.
 
 ## Output Structure
 
@@ -119,6 +134,8 @@ python scripts/run_pipeline.py -i data/scenes -o output --sam-max-dimension 1024
 
 ### Use Pre-made Masks
 
+The easiest way is to place masks directly in your input data (see [Input Data Format](#input-data-format)). Alternatively, specify an external masks directory:
+
 ```bash
 # Use external processed masks (skips SAM and mask processing)
 python scripts/run_pipeline.py -i data/scenes -o output --processed-masks-dir /path/to/masks
@@ -126,8 +143,6 @@ python scripts/run_pipeline.py -i data/scenes -o output --processed-masks-dir /p
 # Use external raw masks (skips SAM, runs processing)
 python scripts/run_pipeline.py -i data/scenes -o output --masks-dir /path/to/masks
 ```
-
-The pipeline also auto-detects masks in source data (`scene/camera/masks/` or `scene/camera/processed_masks/`).
 
 ## Tuning Calibration Parameters
 
