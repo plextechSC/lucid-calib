@@ -58,6 +58,8 @@ python scripts/run_pipeline.py -i <input_data> -o <output_dir>
 
 ## Input Data Format
 
+> For detailed specifications including file formats, calibration parameters, and naming conventions, see [DATA_FORMAT.md](DATA_FORMAT.md).
+
 The pipeline expects data in the following structure:
 
 ```
