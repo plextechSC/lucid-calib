@@ -833,7 +833,8 @@ def process_scene(
     force_process_masks: bool = False,
     sam_max_dimension: Optional[int] = None,
     external_masks_dir: Optional[Path] = None,
-    external_processed_masks_dir: Optional[Path] = None
+    external_processed_masks_dir: Optional[Path] = None,
+    camera_filter: Optional[List[str]] = None
 ):
     """
     Process a single scene.
@@ -844,6 +845,9 @@ def process_scene(
         3. Source data processed_masks (scene/camera/processed_masks/)
         4. Source data masks (scene/camera/masks/)
         5. Generate with SAM (default)
+    
+    Args:
+        camera_filter: If provided, only process cameras in this list
     """
     scene_name = scene_dir.name
     print(f"\n{'='*60}")
@@ -865,7 +869,17 @@ def process_scene(
         print(f"  Warning: No camera directories found in {scene_dir}")
         return
 
-    print(f"  Found {len(cameras)} cameras: {cameras}")
+    # Filter cameras if specified
+    if camera_filter:
+        available_cameras = cameras
+        cameras = [c for c in cameras if c in camera_filter]
+        if len(cameras) == 0:
+            print(f"  Warning: No cameras matched filter: {camera_filter}")
+            print(f"  Available cameras: {available_cameras}")
+            return
+        print(f"  Filtered to {len(cameras)} camera(s): {cameras}")
+    else:
+        print(f"  Found {len(cameras)} cameras: {cameras}")
 
     # Process each camera
     for camera_name in cameras:
@@ -1028,6 +1042,18 @@ Examples:
   # Full pipeline (generates SAM masks)
   python scripts/run_pipeline.py -i data/scenes -o output
 
+  # Process only a specific scene
+  python scripts/run_pipeline.py -i data/scenes -o output --scene scene1
+
+  # Process multiple specific scenes
+  python scripts/run_pipeline.py -i data/scenes -o output --scene scene1 --scene scene2
+
+  # Process only specific cameras within scenes
+  python scripts/run_pipeline.py -i data/scenes -o output --camera cam02 --camera cam03
+
+  # Combine scene and camera filters
+  python scripts/run_pipeline.py -i data/scenes -o output --scene scene1 --camera cam02
+
   # Use pre-made processed masks (skips SAM and processing)
   python scripts/run_pipeline.py -i data/scenes -o output --processed-masks-dir /path/to/masks
 
@@ -1061,14 +1087,19 @@ Expected mask directory structure:
   └── image_stem_2/
       └── ...
 
+Filtering:
+  --scene NAME    Process only specified scene(s). Can be repeated.
+  --camera NAME   Process only specified camera(s). Can be repeated.
+
 Pipeline steps:
-  1. Create working directory (preserving original data)
-  2. Crop wide-angle camera images (cam02, cam05, cam07)
-  3. Convert lucid_calib.json to calib.json (with crop adjustments)
-  4. Load masks (from external/source) or generate with SAM
-  5. Process masks to filter and refine (if using raw masks)
-  6. Run CalibAnything C++ calibration
-  7. Output results to results/ directory
+  1. Discover scenes and cameras (apply filters if specified)
+  2. Create working directory (preserving original data)
+  3. Crop wide-angle camera images (cam02, cam05, cam07)
+  4. Convert lucid_calib.json to calib.json (with crop adjustments)
+  5. Load masks (from external/source) or generate with SAM
+  6. Process masks to filter and refine (if using raw masks)
+  7. Run CalibAnything C++ calibration
+  8. Output results to results/ directory
 
 Output structure:
   output/scene_camera/
@@ -1087,6 +1118,10 @@ Output structure:
                         help='Input directory containing scene folders')
     parser.add_argument('-o', '--output', required=True, type=Path,
                         help='Output directory for results')
+    parser.add_argument('--scene', action='append', dest='scenes', metavar='NAME',
+                        help='Process only specified scene(s). Can be used multiple times.')
+    parser.add_argument('--camera', action='append', dest='cameras', metavar='NAME',
+                        help='Process only specified camera(s). Can be used multiple times.')
     parser.add_argument('--skip-calibration', action='store_true',
                         help='Skip the calibration step')
     parser.add_argument('--force-sam', action='store_true',
@@ -1117,7 +1152,17 @@ Output structure:
         print(f"Error: No scene directories found in {args.input}")
         return 1
 
-    print(f"\nFound {len(scenes)} scene(s): {[s.name for s in scenes]}")
+    # Filter scenes if --scene specified
+    if args.scenes:
+        scene_filter = set(args.scenes)
+        scenes = [s for s in scenes if s.name in scene_filter]
+        if len(scenes) == 0:
+            print(f"Error: No scenes matched filter: {args.scenes}")
+            print(f"Available scenes: {[s.name for s in find_scenes(args.input)]}")
+            return 1
+        print(f"\nFiltered to {len(scenes)} scene(s): {[s.name for s in scenes]}")
+    else:
+        print(f"\nFound {len(scenes)} scene(s): {[s.name for s in scenes]}")
 
     # Create output directory
     args.output.mkdir(parents=True, exist_ok=True)
@@ -1131,7 +1176,8 @@ Output structure:
             force_process_masks=args.force_process_masks,
             sam_max_dimension=args.sam_max_dimension,
             external_masks_dir=args.masks_dir,
-            external_processed_masks_dir=args.processed_masks_dir
+            external_processed_masks_dir=args.processed_masks_dir,
+            camera_filter=args.cameras
         )
 
     print(f"\n{'='*60}")

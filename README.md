@@ -153,6 +153,27 @@ python scripts/run_pipeline.py -i data/scenes -o output --processed-masks-dir /p
 python scripts/run_pipeline.py -i data/scenes -o output --masks-dir /path/to/masks
 ```
 
+### Run Specific Scenes or Cameras
+
+Use `--scene` and `--camera` to process only specific scenes or cameras:
+
+```bash
+# Process only a specific scene
+python scripts/run_pipeline.py -i data/scenes -o output --scene scene1
+
+# Process multiple specific scenes
+python scripts/run_pipeline.py -i data/scenes -o output --scene scene1 --scene scene2
+
+# Process only specific cameras within scenes
+python scripts/run_pipeline.py -i data/scenes -o output --camera cam02 --camera cam03
+
+# Combine scene and camera filters
+python scripts/run_pipeline.py -i data/scenes -o output --scene scene1 --camera cam02
+
+# Re-run a specific scene with forced mask regeneration
+python scripts/run_pipeline.py -i data/scenes -o output --scene scene1 --force-sam
+```
+
 ## Tuning Calibration Parameters
 
 CalibAnything requires **scene-specific parameter tuning** for optimal results. The key parameters are in the `params` section of `output/<scene>_<camera>/working/calib.json`:
