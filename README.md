@@ -30,6 +30,15 @@ sudo apt install cmake libpcl-dev libopencv-dev libeigen3-dev libboost-all-dev l
 - Python 3.8+
 - Git
 
+### GPU Requirements (for SAM mask generation)
+
+SAM mask generation requires significant GPU resources:
+
+- **Minimum**: NVIDIA A100 with 40GB VRAM (or equivalent)
+- **Recommended**: A100 80GB for processing high-resolution images
+
+If you don't have access to a suitable GPU, you can use pre-made masks instead (see [Using Pre-made Masks](#using-pre-made-masks)).
+
 ## Quick Start
 
 ```bash
