@@ -71,7 +71,7 @@ input_data/
 │   ├── cam02/
 │   │   ├── 000000.png
 │   │   ├── 000001.png
-│   │   ├── calib.json          # Json from Calibration_parameters folder (fwc_new.json, fwc_c.json, etc.)
+│   │   ├── lucid_calib.json          # Json from Calibration_parameters folder (fwc_new.json, fwc_c.json, etc.)
 │   │   ├── masks/              # (optional) Pre-computed SAM masks
 │   │   │   ├── 000000.png
 │   │   │   └── ...
