@@ -371,8 +371,20 @@ def convert_lucid_to_calib(input_path: str, output_path: str = None,
                 "cluster_tolerance": 0.2,
                 "search_num": 4000,
                 "search_range": {
-                "rot_deg": 0.5,
-                "trans_m": 0.05
+                    "rot_deg": 0.5,
+                    "trans_m": 0.05
+                },
+                "point_range": {
+                    "top": 0.4,
+                    "bottom": 1.0
+                },
+                "down_sample": {
+                    "is_valid": False,
+                    "voxel_m": 0.05
+                },
+                "thread": {
+                    "is_multi_thread": True,
+                    "num_thread": 4
                 },
             }
         case 'FWC_L':
@@ -381,8 +393,20 @@ def convert_lucid_to_calib(input_path: str, output_path: str = None,
                 "cluster_tolerance": 0.2,
                 "search_num": 4000,
                 "search_range": {
-                "rot_deg": 0.5,
-                "trans_m": 0.05
+                    "rot_deg": 0.5,
+                    "trans_m": 0.05
+                },
+                "point_range": {
+                    "top": 0.4,
+                    "bottom": 1.0
+                },
+                "down_sample": {
+                    "is_valid": False,
+                    "voxel_m": 0.05
+                },
+                "thread": {
+                    "is_multi_thread": True,
+                    "num_thread": 4
                 },
             }
         case 'FWC_R':
@@ -391,60 +415,133 @@ def convert_lucid_to_calib(input_path: str, output_path: str = None,
                 "cluster_tolerance": 0.2,
                 "search_num": 4000,
                 "search_range": {
-                "rot_deg": 0.5,
-                "trans_m": 0.05
+                    "rot_deg": 0.5,
+                    "trans_m": 0.05
+                },
+                "point_range": {
+                    "top": 0.4,
+                    "bottom": 1.0
+                },
+                "down_sample": {
+                    "is_valid": False,
+                    "voxel_m": 0.05
+                },
+                "thread": {
+                    "is_multi_thread": True,
+                    "num_thread": 4
                 },
             }
         case 'FNC_C':
             params = {
                 "min_plane_point_num": 2000,
-                "cluster_tolerance": 0.25,
+                "cluster_tolerance": 0.2,
                 "search_num": 4000,
                 "search_range": {
-                    "rot_deg": 5,
-                    "trans_m": 0.5
+                    "rot_deg": 0.5,
+                    "trans_m": 0.05
+                },
+                "point_range": {
+                    "top": 0.4,
+                    "bottom": 1.0
+                },
+                "down_sample": {
+                    "is_valid": False,
+                    "voxel_m": 0.05
+                },
+                "thread": {
+                    "is_multi_thread": True,
+                    "num_thread": 4
                 },
             }
         case 'RNC_R':
             params = {
                 "min_plane_point_num": 2000,
-                "cluster_tolerance": 0.25,
+                "cluster_tolerance": 0.2,
                 "search_num": 4000,
                 "search_range": {
-                    "rot_deg": 5,
-                    "trans_m": 0.5
+                    "rot_deg": 0.5,
+                    "trans_m": 0.05
+                },
+                "point_range": {
+                    "top": 0.4,
+                    "bottom": 1.0
+                },
+                "down_sample": {
+                    "is_valid": False,
+                    "voxel_m": 0.05
+                },
+                "thread": {
+                    "is_multi_thread": True,
+                    "num_thread": 4
                 },
             }
         case 'RNC_C':
             params = {
                 "min_plane_point_num": 2000,
-                "cluster_tolerance": 0.25,
+                "cluster_tolerance": 0.2,
                 "search_num": 4000,
                 "search_range": {
-                    "rot_deg": 5,
-                    "trans_m": 0.5
+                    "rot_deg": 0.5,
+                    "trans_m": 0.05
+                },
+                "point_range": {
+                    "top": 0.4,
+                    "bottom": 1.0
+                },
+                "down_sample": {
+                    "is_valid": False,
+                    "voxel_m": 0.05
+                },
+                "thread": {
+                    "is_multi_thread": True,
+                    "num_thread": 4
                 },
             }
         case 'RNC_L':
             params = {
                 "min_plane_point_num": 2000,
-                "cluster_tolerance": 0.25,
+                "cluster_tolerance": 0.2,
                 "search_num": 4000,
                 "search_range": {
-                    "rot_deg": 5,
-                    "trans_m": 0.5
+                    "rot_deg": 0.5,
+                    "trans_m": 0.05
+                },
+                "point_range": {
+                    "top": 0.4,
+                    "bottom": 1.0
+                },
+                "down_sample": {
+                    "is_valid": False,
+                    "voxel_m": 0.05
+                },
+                "thread": {
+                    "is_multi_thread": True,
+                    "num_thread": 4
                 },
             }
         case _:
             params = {
                 "min_plane_point_num": 2000,
-                "cluster_tolerance": 0.25,
+                "cluster_tolerance": 0.2,
                 "search_num": 4000,
                 "search_range": {
-                    "rot_deg": 5,
-                    "trans_m": 0.5
+                    "rot_deg": 0.5,
+                    "trans_m": 0.05
+                },
+                "point_range": {
+                    "top": 0.4,
+                    "bottom": 1.0
+                },
+                "down_sample": {
+                    "is_valid": False,
+                    "voxel_m": 0.05
+                },
+                "thread": {
+                    "is_multi_thread": True,
+                    "num_thread": 4
                 },
             }
+
 
     # Priority: custom_params > template_path > defaults
     if custom_params:
