@@ -9,6 +9,7 @@ Usage:
 """
 
 import argparse
+from calendar import c
 import json
 import re
 import numpy as np
@@ -286,7 +287,8 @@ def convert_lucid_to_calib(input_path: str, output_path: str = None,
                            template_path: str = None,
                            is_wide_camera: bool = False,
                            wide_offset_y: float = 0.0,
-                           custom_params: dict = None) -> dict:
+                           custom_params: dict = None,
+                           camera_name: str = None) -> dict:
     """
     Convert Lucid calibration JSON to calib.json format.
 
@@ -362,27 +364,87 @@ def convert_lucid_to_calib(input_path: str, output_path: str = None,
         file_names = ["000000"]
 
     # Load template params if provided
-    params = {
-        "min_plane_point_num": 2000,
-        "cluster_tolerance": 0.25,
-        "search_num": 4000,
-        "search_range": {
-            "rot_deg": 5,
-            "trans_m": 0.5
-        },
-        "point_range": {
-            "top": 0.0,
-            "bottom": 1.0
-        },
-        "down_sample": {
-            "is_valid": False,
-            "voxel_m": 0.05
-        },
-        "thread": {
-            "is_multi_thread": True,
-            "num_thread": 8
-        }
-    }
+    match camera_name.upper():
+        case 'FWC_C':
+            params = {
+                "min_plane_point_num": 3000,
+                "cluster_tolerance": 0.2,
+                "search_num": 4000,
+                "search_range": {
+                "rot_deg": 0.5,
+                "trans_m": 0.05
+                },
+            }
+        case 'FWC_L':
+            params = {
+                "min_plane_point_num": 3000,
+                "cluster_tolerance": 0.2,
+                "search_num": 4000,
+                "search_range": {
+                "rot_deg": 0.5,
+                "trans_m": 0.05
+                },
+            }
+        case 'FWC_R':
+            params = {
+                "min_plane_point_num": 3000,
+                "cluster_tolerance": 0.2,
+                "search_num": 4000,
+                "search_range": {
+                "rot_deg": 0.5,
+                "trans_m": 0.05
+                },
+            }
+        case 'FNC_C':
+            params = {
+                "min_plane_point_num": 2000,
+                "cluster_tolerance": 0.25,
+                "search_num": 4000,
+                "search_range": {
+                    "rot_deg": 5,
+                    "trans_m": 0.5
+                },
+            }
+        case 'RNC_R':
+            params = {
+                "min_plane_point_num": 2000,
+                "cluster_tolerance": 0.25,
+                "search_num": 4000,
+                "search_range": {
+                    "rot_deg": 5,
+                    "trans_m": 0.5
+                },
+            }
+        case 'RNC_C':
+            params = {
+                "min_plane_point_num": 2000,
+                "cluster_tolerance": 0.25,
+                "search_num": 4000,
+                "search_range": {
+                    "rot_deg": 5,
+                    "trans_m": 0.5
+                },
+            }
+        case 'RNC_L':
+            params = {
+                "min_plane_point_num": 2000,
+                "cluster_tolerance": 0.25,
+                "search_num": 4000,
+                "search_range": {
+                    "rot_deg": 5,
+                    "trans_m": 0.5
+                },
+            }
+        case _:
+            params = {
+                "min_plane_point_num": 2000,
+                "cluster_tolerance": 0.25,
+                "search_num": 4000,
+                "search_range": {
+                    "rot_deg": 5,
+                    "trans_m": 0.5
+                },
+            }
 
     # Priority: custom_params > template_path > defaults
     if custom_params:
@@ -541,6 +603,7 @@ Examples:
         is_wide_camera=is_wide_camera,
         wide_offset_y=wide_offset_y,
         custom_params=custom_params,
+        camera_name=camera_name,
     )
 
     if args.print_transform:
