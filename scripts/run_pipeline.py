@@ -413,39 +413,67 @@ def generate_sam_masks_for_camera(
 # Working Directory Structure
 # =============================================================================
 
-def create_working_structure(output_dir: Path, scene_name: str, camera_name: str) -> Dict[str, Path]:
+def create_working_structure(output_dir: Path, scene_name: str, camera_name: str, file_name: str = None) -> Dict[str, Path]:
     """
-    Create working directory structure for a camera.
+    Create working directory structure for a camera (and optionally for a specific image).
 
     Structure:
-        output/scene_cam/
-        ├── working/            # Data for CalibAnything
-        │   ├── images/         # Cropped images (wide) or copies (narrow)
-        │   ├── masks/          # SAM-generated masks
-        │   ├── processed_masks/# Filtered masks
-        │   ├── pc/             # Point clouds
-        │   └── calib.json      # Adjusted calibration
-        └── results/            # Calibration outputs
+        output/scene_cam/          # Shared directory for all images
+        ├── working/              # Shared working directory
+        │   ├── images/           # All images (shared)
+        │   ├── masks/            # All masks (shared)
+        │   └── processed_masks/  # All processed masks (shared)
+        └── scene_cam_image/      # Per-image directory (if file_name provided)
+            ├── working/          # Per-image working directory
+            │   ├── images/       # Single image
+            │   ├── masks/        # Masks for this image
+            │   ├── processed_masks/ # Processed masks for this image
+            │   ├── pc/           # Single PCD file
+            │   └── calib.json    # Calibration config for this image
+            └── results/          # Calibration outputs for this image
     """
-    base_dir = output_dir / f"{scene_name}_{camera_name}"
-    base_dir.mkdir(parents=True, exist_ok=True)
+    if file_name:
+        # Per-image directory structure
+        base_dir = output_dir / f"{scene_name}_{camera_name}_{file_name}"
+        base_dir.mkdir(parents=True, exist_ok=True)
 
-    working_dir = base_dir / "working"
-    results_dir = base_dir / "results"
+        working_dir = base_dir / "working"
+        results_dir = base_dir / "results"
 
-    working_dir.mkdir(exist_ok=True)
-    results_dir.mkdir(exist_ok=True)
+        working_dir.mkdir(exist_ok=True)
+        results_dir.mkdir(exist_ok=True)
 
-    # Working subdirectories
-    images_dir = working_dir / "images"
-    masks_dir = working_dir / "masks"
-    pc_dir = working_dir / "pc"
-    processed_masks_dir = working_dir / "processed_masks"
+        # Working subdirectories
+        images_dir = working_dir / "images"
+        masks_dir = working_dir / "masks"
+        pc_dir = working_dir / "pc"
+        processed_masks_dir = working_dir / "processed_masks"
 
-    images_dir.mkdir(exist_ok=True)
-    masks_dir.mkdir(exist_ok=True)
-    pc_dir.mkdir(exist_ok=True)
-    processed_masks_dir.mkdir(exist_ok=True)
+        images_dir.mkdir(exist_ok=True)
+        masks_dir.mkdir(exist_ok=True)
+        pc_dir.mkdir(exist_ok=True)
+        processed_masks_dir.mkdir(exist_ok=True)
+    else:
+        # Shared directory structure for all images
+        base_dir = output_dir / f"{scene_name}_{camera_name}"
+        base_dir.mkdir(parents=True, exist_ok=True)
+
+        working_dir = base_dir / "working"
+        results_dir = base_dir / "results"
+
+        working_dir.mkdir(exist_ok=True)
+        results_dir.mkdir(exist_ok=True)
+
+        # Working subdirectories
+        images_dir = working_dir / "images"
+        masks_dir = working_dir / "masks"
+        pc_dir = working_dir / "pc"
+        processed_masks_dir = working_dir / "processed_masks"
+
+        images_dir.mkdir(exist_ok=True)
+        masks_dir.mkdir(exist_ok=True)
+        pc_dir.mkdir(exist_ok=True)
+        processed_masks_dir.mkdir(exist_ok=True)
 
     return {
         'base_dir': base_dir,
@@ -518,6 +546,76 @@ def prepare_images_and_pcds(
             print(f"  Copied PCD: {pcd_file.name}")
 
     return (crop_offset_x, crop_offset_y)
+
+
+def prepare_single_image_data(
+    shared_dirs: Dict[str, Path],
+    per_image_dirs: Dict[str, Path],
+    file_name: str,
+    image_extensions: set = {'.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG'}
+) -> bool:
+    """
+    Copy data for a single image from shared directory to per-image working directory.
+    
+    Args:
+        shared_dirs: Shared working directory structure (all images)
+        per_image_dirs: Per-image working directory structure
+        file_name: File name (stem) of the image/PCD to copy
+        image_extensions: Valid image extensions
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    # Copy the specific image
+    found_image = False
+    for ext in image_extensions:
+        src_image = shared_dirs['images_dir'] / f"{file_name}{ext}"
+        if src_image.exists():
+            dst_image = per_image_dirs['images_dir'] / f"{file_name}{ext}"
+            shutil.copy2(src_image, dst_image)
+            found_image = True
+            break
+    
+    if not found_image:
+        print(f"    Warning: Image file not found for {file_name}")
+        return False
+    
+    # Copy the specific PCD file
+    src_pcd = shared_dirs['pc_dir'] / f"{file_name}.pcd"
+    if src_pcd.exists():
+        dst_pcd = per_image_dirs['pc_dir'] / f"{file_name}.pcd"
+        shutil.copy2(src_pcd, dst_pcd)
+    else:
+        print(f"    Warning: PCD file not found for {file_name}")
+        return False
+    
+    # Copy masks for this image (if they exist)
+    # Priority: processed_masks > masks
+    mask_stem = file_name
+    copied_masks = False
+    
+    if shared_dirs['processed_masks_dir'].exists():
+        src_mask_dir = shared_dirs['processed_masks_dir'] / mask_stem
+        if src_mask_dir.exists() and src_mask_dir.is_dir():
+            dst_mask_dir = per_image_dirs['processed_masks_dir'] / mask_stem
+            if dst_mask_dir.exists():
+                shutil.rmtree(dst_mask_dir)
+            shutil.copytree(src_mask_dir, dst_mask_dir)
+            copied_masks = True
+    
+    if not copied_masks and shared_dirs['masks_dir'].exists():
+        src_mask_dir = shared_dirs['masks_dir'] / mask_stem
+        if src_mask_dir.exists() and src_mask_dir.is_dir():
+            dst_mask_dir = per_image_dirs['masks_dir'] / mask_stem
+            if dst_mask_dir.exists():
+                shutil.rmtree(dst_mask_dir)
+            shutil.copytree(src_mask_dir, dst_mask_dir)
+            copied_masks = True
+    
+    if not copied_masks:
+        print(f"    Warning: No masks found for {file_name}")
+    
+    return True
 
 
 def convert_calib_file(
@@ -887,35 +985,17 @@ def process_scene(
         camera_type = "wide-angle" if is_wide_camera(camera_name) else "narrow"
         print(f"  Camera type: {camera_type}")
 
-        # Create working directory structure
-        dirs = create_working_structure(output_dir, scene_name, camera_name)
+        # Create shared working directory structure (for all images)
+        shared_dirs = create_working_structure(output_dir, scene_name, camera_name)
 
-        # Prepare images (crop for wide cameras, copy for narrow)
+        # Prepare all images (crop for wide cameras, copy for narrow)
+        # This is done once for all images to enable efficient mask generation
         crop_offset = prepare_images_and_pcds(
-            scene_dir, camera_name, dirs, pcd_files, file_names
+            scene_dir, camera_name, shared_dirs, pcd_files, file_names
         )
 
-        # Convert calibration file with crop adjustments
-        lucid_calib_path = scene_dir / camera_name / "lucid_calib.json"
-        output_calib_path = dirs['working_dir'] / "calib.json"
-
-        params_file = scene_dir / camera_name / "params.json"
-        if not params_file.exists():
-            params_file = None
-
-        if not lucid_calib_path.exists():
-            print(f"  Warning: lucid_calib.json not found at {lucid_calib_path}")
-            continue
-
-        if not convert_calib_file(
-            lucid_calib_path, output_calib_path,
-            camera_name, file_names, crop_offset, params_file
-        ):
-            print(f"  Failed to convert calibration file for {camera_name}")
-            continue
-
         # Get image stems for mask matching
-        image_stems = get_image_stems(dirs['images_dir'])
+        image_stems = get_image_stems(shared_dirs['images_dir'])
         
         # Determine mask source with priority
         # Priority: external_processed > external_raw > source_processed > source_raw > generate
@@ -958,39 +1038,39 @@ def process_scene(
         # Copy external/source masks if applicable
         if use_external_processed:
             count = copy_masks_directory(
-                external_processed_masks_dir, dirs['processed_masks_dir'], image_stems
+                external_processed_masks_dir, shared_dirs['processed_masks_dir'], image_stems
             )
             print(f"  Copied {count} processed mask directories from external source")
         
         elif use_external_raw:
             count = copy_masks_directory(
-                external_masks_dir, dirs['masks_dir'], image_stems
+                external_masks_dir, shared_dirs['masks_dir'], image_stems
             )
             print(f"  Copied {count} mask directories from external source")
         
         elif use_source_processed:
             count = copy_masks_directory(
-                source_processed_masks_path, dirs['processed_masks_dir'], image_stems
+                source_processed_masks_path, shared_dirs['processed_masks_dir'], image_stems
             )
             print(f"  Copied {count} processed mask directories from source")
         
         elif use_source_raw:
             count = copy_masks_directory(
-                source_masks_path, dirs['masks_dir'], image_stems
+                source_masks_path, shared_dirs['masks_dir'], image_stems
             )
             print(f"  Copied {count} mask directories from source")
         
         # Generate SAM masks if needed (Priority 5: default)
         if not skip_sam:
             need_sam = force_sam or not all_masks_exist_for_images(
-                dirs['images_dir'], dirs['masks_dir']
+                shared_dirs['images_dir'], shared_dirs['masks_dir']
             )
 
             if need_sam:
-                print(f"  Generating SAM masks...")
+                print(f"  Generating SAM masks for all images...")
                 generate_sam_masks_for_camera(
-                    dirs['images_dir'],
-                    dirs['masks_dir'],
+                    shared_dirs['images_dir'],
+                    shared_dirs['masks_dir'],
                     lucid_sam_dir=LUCID_SAM_DIR,
                     max_dimension=sam_max_dimension,
                     force=force_sam
@@ -1000,31 +1080,68 @@ def process_scene(
 
         # Process masks if needed
         if not skip_processing:
-            need_process = force_process_masks or not processed_masks_exist(dirs['processed_masks_dir'])
+            need_process = force_process_masks or not processed_masks_exist(shared_dirs['processed_masks_dir'])
 
             if need_process:
-                process_masks(dirs['masks_dir'], dirs['processed_masks_dir'])
+                process_masks(shared_dirs['masks_dir'], shared_dirs['processed_masks_dir'])
             else:
                 print(f"  Processed masks already exist, skipping (use --force-process-masks to reprocess)")
 
-        # Update calib.json to use processed_masks
-        if dirs['processed_masks_dir'].exists():
-            mask_subdirs = [d for d in dirs['processed_masks_dir'].iterdir() if d.is_dir()]
-            if len(mask_subdirs) > 0:
-                calib_data = json.load(open(output_calib_path))
-                calib_data['mask_folder'] = 'processed_masks'
-                json.dump(calib_data, open(output_calib_path, 'w'), indent=2)
-                print(f"  Updated calib.json to use processed_masks")
+        # Check for calibration file
+        lucid_calib_path = scene_dir / camera_name / "lucid_calib.json"
+        if not lucid_calib_path.exists():
+            print(f"  Warning: lucid_calib.json not found at {lucid_calib_path}")
+            continue
 
-        # Run calibration
-        if not skip_calibration:
-            print(f"  Running calibration...")
-            success, results_path = run_calibration(
-                dirs['working_dir'], dirs['results_dir'],
-                scene_name, camera_name
-            )
-        else:
-            print(f"  Skipping calibration (--skip-calibration flag)")
+        params_file = scene_dir / camera_name / "params.json"
+        if not params_file.exists():
+            params_file = None
+
+        # Process each image individually
+        print(f"\n  Processing {len(file_names)} image(s) individually...")
+        for file_name in file_names:
+            print(f"\n    Processing image: {file_name}")
+            
+            # Create per-image working directory structure
+            per_image_dirs = create_working_structure(output_dir, scene_name, camera_name, file_name)
+            
+            # Copy data for this specific image
+            if not prepare_single_image_data(shared_dirs, per_image_dirs, file_name):
+                print(f"    Warning: Failed to prepare data for {file_name}, skipping")
+                continue
+            
+            # Convert calibration file with crop adjustments (single file_name)
+            output_calib_path = per_image_dirs['working_dir'] / "calib.json"
+            
+            if not convert_calib_file(
+                lucid_calib_path, output_calib_path,
+                camera_name, [file_name], crop_offset, params_file
+            ):
+                print(f"    Failed to convert calibration file for {file_name}")
+                continue
+
+            # Update calib.json to use processed_masks if available
+            if per_image_dirs['processed_masks_dir'].exists():
+                mask_subdirs = [d for d in per_image_dirs['processed_masks_dir'].iterdir() if d.is_dir()]
+                if len(mask_subdirs) > 0:
+                    calib_data = json.load(open(output_calib_path))
+                    calib_data['mask_folder'] = 'processed_masks'
+                    json.dump(calib_data, open(output_calib_path, 'w'), indent=2)
+                    print(f"    Updated calib.json to use processed_masks")
+
+            # Run calibration for this image
+            if not skip_calibration:
+                print(f"    Running calibration for {file_name}...")
+                success, results_path = run_calibration(
+                    per_image_dirs['working_dir'], per_image_dirs['results_dir'],
+                    scene_name, camera_name
+                )
+                if success:
+                    print(f"    Calibration complete for {file_name}")
+                else:
+                    print(f"    Calibration failed for {file_name}")
+            else:
+                print(f"    Skipping calibration for {file_name} (--skip-calibration flag)")
 
 
 # =============================================================================
