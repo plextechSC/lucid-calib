@@ -86,6 +86,8 @@ input_data/
     └── ...
 ```
 
+> **Important:** Image and PCD file names must match. The pipeline uses PCD filenames as the source of truth and expects corresponding images with the same base name (e.g., `000000.pcd` requires `000000.png`). Mismatched names like `frame.pcd` and `image_capture_001.png` will cause the calibration to fail.
+
 ### Using Pre-made Masks
 
 If you have pre-generated masks, place them in the input data folder and the pipeline will automatically detect and use them:
