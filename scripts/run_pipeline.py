@@ -908,6 +908,26 @@ def run_calibration(
                 shutil.copy2(src, dst)
                 copied_files.append(filename)
 
+        # Check if refinement made any difference
+        init_img_path = results_dir_abs / "init_proj_seg.png"
+        refined_img_path = results_dir_abs / "refined_proj_seg.png"
+        if init_img_path.exists() and refined_img_path.exists():
+            try:
+                init_img = Image.open(init_img_path)
+                refined_img = Image.open(refined_img_path)
+                if init_img.size == refined_img.size and list(init_img.getdata()) == list(refined_img.getdata()):
+                    print()
+                    print(f"  ⚠️  WARNING: No difference detected between initial and refined calibration projections!")
+                    print(f"      init_proj_seg.png and refined_proj_seg.png are identical.")
+                    print(f"      The refinement may not have improved the calibration.")
+                    print(f"      Possible causes:")
+                    print(f"        - The initial calibration was already optimal")
+                    print(f"        - The search range was too narrow to find a better solution")
+                    print(f"        - The segmentation masks may not provide enough constraints")
+                    print()
+            except Exception as e:
+                print(f"    Note: Could not compare projection images: {e}")
+
         print(f"  Calibration complete. Results saved to: {results_dir_abs}")
         print(f"    Copied files: {', '.join(copied_files)}")
         return True, results_dir
